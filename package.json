@@ -1,0 +1,33 @@
+{
+  "name": "transactions-tracker-service",
+  "version": "1.0.0",
+  "main": "src/index.ts",
+  "author": "Somethea Siek <sometheasiekswx@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.7.7",
+    "body-parser": "^1.20.3",
+    "currency.js": "^2.0.4",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "mongodb": "^6.9.0",
+    "mongoose": "^8.6.2"
+  },
+  "devDependencies": {
+    "@types/axios": "^0.14.0",
+    "@types/body-parser": "^1.19.5",
+    "@types/dotenv": "^8.2.0",
+    "@types/express": "^4.17.21",
+    "@types/mongodb": "^4.0.7",
+    "@types/mongoose": "^5.11.97",
+    "@types/node": "^22.5.5",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.6.2"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "npx nodemon --exec ts-node src/index.ts"
+  }
+}
