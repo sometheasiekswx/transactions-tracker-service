@@ -4,7 +4,90 @@ import {amountRegex, isTransferLine, isValidDateLine, parseDate} from "../utils/
 import {convertMoneyToAUD} from "../utils/convertToAud";
 import mongoose from "mongoose";
 
+export async function getTransaction(req: Request, res: Response) {
+    if (!req.body || Object.keys(req.body).length === 0) {
+        return res.status(400).send("Request body is empty");
+    }
+
+    const {id} = req.params;
+
+    if (!mongoose.isValidObjectId(id)) {
+        return res.status(400).json({message: "Invalid ID format"});
+    }
+
+    try {
+        const transaction = await Transaction.findById(id);
+
+        if (!transaction) {
+            return res.status(404).json({message: "Transaction not found"});
+        }
+
+        // Check if the transaction belongs to the authenticated user
+        if (transaction.userId !== req.authUser.id) {
+            return res.status(403).json({message: "User does not own the transaction"});
+        }
+
+        res.status(200).json({message: "Transaction retrieved successfully", transaction: transaction});
+    } catch (error) {
+        console.error('Error retrieving transaction:', error);
+        res.status(500).json({message: 'Server error'});
+    }
+}
+
+async function retrieveTransaction(id: string, userId: String) {
+    try {
+        const transaction = await Transaction.findById(id);
+
+        if (!transaction) {
+            return {};
+        }
+
+        if (transaction.userId !== userId) {
+            return {};
+        }
+
+        return transaction;
+    } catch (error) {
+        console.error('Error retrieving transaction:', error);
+        return new Error(`Error retrieving transaction ${error}`);
+    }
+}
+
+export async function getTransactions(req: Request, res: Response) {
+    if (!req.body || Object.keys(req.body).length === 0) {
+        return res.status(400).send("Request body is empty");
+    }
+
+    const data = req.body;
+
+    // Validate that at least one field is provided
+    if (Object.keys(data).length === 0) {
+        return res.status(400).json({message: 'No fields provided for update'});
+    }
+
+    const invalidFields = Object.keys(data).filter(field => !["ids"].includes(field));
+
+    if (invalidFields.length > 0) {
+        return res.status(400).json({message: `Invalid fields: ${invalidFields.join(', ')}`});
+    }
+
+    try {
+        const transactions = [];
+        for (const id of data.ids) {
+            transactions.push(await retrieveTransaction(id, req.authUser.id));
+        }
+        res.status(200).json({message: "Transactions retrieved successfully", transactions: transactions});
+    } catch (error) {
+        console.error('Error updating transaction:', error);
+        res.status(500).json({message: 'Server error'});
+    }
+}
+
 export async function updateTransaction(req: Request, res: Response) {
+    if (!req.body || Object.keys(req.body).length === 0) {
+        return res.status(400).send("Request body is empty");
+    }
+
     const {id} = req.params;
 
     if (!mongoose.isValidObjectId(id)) {
@@ -25,14 +108,20 @@ export async function updateTransaction(req: Request, res: Response) {
     }
 
     try {
-        // Update the transaction
-        const updatedTransaction = await Transaction.findByIdAndUpdate(id, newData, {new: true, runValidators: true});
+        const transaction = await Transaction.findById(id);
 
-        if (!updatedTransaction) {
-            return res.status(404).json({message: 'Transaction not found'});
+        if (!transaction) {
+            return res.status(404).json({message: "Transaction not found"});
         }
 
-        res.status(200).json(updatedTransaction);
+        // Check if the transaction belongs to the authenticated user
+        if (transaction.userId !== req.authUser.id) {
+            return res.status(403).json({message: "User does not own the transaction"});
+        }
+
+        const result = await transaction.updateOne(newData, {new: true, runValidators: true});
+
+        res.status(200).json({message: "Transaction updated successfully", result: result});
     } catch (error) {
         console.error('Error updating transaction:', error);
         res.status(500).json({message: 'Server error'});
@@ -40,6 +129,10 @@ export async function updateTransaction(req: Request, res: Response) {
 }
 
 export async function deleteTransaction(req: Request, res: Response) {
+    if (!req.body || Object.keys(req.body).length === 0) {
+        return res.status(400).send("Request body is empty");
+    }
+
     const {id} = req.params;
 
     // Validate the ID format
@@ -49,14 +142,20 @@ export async function deleteTransaction(req: Request, res: Response) {
 
     try {
         // Find the transaction by ID and delete it
-        const result = await Transaction.findByIdAndDelete(id);
-        console.log(result);
+        const transaction = await Transaction.findById(id);
 
-        if (!result) {
+        if (!transaction) {
             return res.status(404).json({message: "Transaction not found"});
         }
 
-        res.status(200).json({message: "Transaction successfully deleted"});
+        // Check if the transaction belongs to the authenticated user
+        if (transaction.userId !== req.authUser.id) {
+            return res.status(403).json({message: "User does not own the transaction"});
+        }
+
+        const result = await transaction.deleteOne();
+
+        res.status(200).json({message: "Transaction successfully deleted", result: result});
     } catch (error) {
         console.error("Error deleting transaction:", error);
         res.status(500).json({message: "Server error"});
@@ -77,7 +176,7 @@ export async function addTransaction(req: Request, res: Response) {
     try {
         const transactionDate = new Date(date);
         const newTransaction = {
-            date: transactionDate, description: description, amount: amount
+            userId: req.authUser.id, date: transactionDate, description: description, amount: amount
         };
         const createdTransaction = await Transaction.create(newTransaction);
 
@@ -122,12 +221,11 @@ export async function addTransactions(req: Request, res: Response): Promise<Resp
             const amountStr = amountMatch ? amountMatch[0] : null;
             const amount = convertMoneyToAUD(amountStr || "");
 
-
             const description = line.replace(amountRegex, "").trim();  // Remove amount from description
 
             // Store the POS transaction
             if (amountStr && description) {
-                transactions.push({date: date!, description: description, amount: amount});
+                transactions.push({userId: req.authUser.id, date: date!, description: description, amount: amount});
             }
         }
     }
@@ -137,6 +235,7 @@ export async function addTransactions(req: Request, res: Response): Promise<Resp
     }
 
     try {
+        const transactionsAdded = [];
         for (const transaction of transactions) {
             console.log(`|| Processing Transaction ${transaction.description}`);
 
@@ -146,13 +245,13 @@ export async function addTransactions(req: Request, res: Response): Promise<Resp
 
             if (!existingTransaction) {
                 const createdTransaction = await Transaction.create(transaction);
-                console.log("Transaction added:", createdTransaction);
+                transactionsAdded.push(createdTransaction)
             } else {
                 console.log("Skipping duplicate transaction");
             }
         }
 
-        return res.status(200).send({message: "Transactions added successfully"});
+        return res.status(200).send({message: "Transactions added successfully", transactionsAdded: transactionsAdded});
     } catch (error) {
         console.error(error);
         return res.status(500).send("Database connection error");
