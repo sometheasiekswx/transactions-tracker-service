@@ -3,21 +3,18 @@ import app from "./app";
 import {checkEnv} from "./config/env";
 import {connectDB} from "./config/db";
 
-import { JwtPayload } from 'jsonwebtoken';
-
-
 
 declare global {
     namespace Express {
         interface Request {
-            authUser: {id: String, iat: number, exp: number}; // You can adjust the type according to your needs
+            authUser: { id: String, iat: number, exp: number }; // You can adjust the type according to your needs
         }
     }
 }
 
 
 dotenv.config();
-checkEnv();
+checkEnv(["PORT", "MONGODB_URI", "MONGODB_DB_NAME", "JWT_SECRET"]);
 connectDB();
 
 app.listen(process.env.PORT, () => {
