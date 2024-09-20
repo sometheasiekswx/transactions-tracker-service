@@ -20,6 +20,8 @@ const transactionSchema: Schema<ITransaction> = new Schema({
     amount: {type: Number, required: true}
 }, {timestamps: true});
 
+transactionSchema.index({ userId: 1 });
+
 // Create and export the Mongoose model for the Transaction schema
 const Transaction = mongoose.model<ITransaction>('Transaction', transactionSchema);
 

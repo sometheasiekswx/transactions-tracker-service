@@ -4,6 +4,49 @@ import {amountRegex, isTransferLine, isValidDateLine, parseDate} from "../utils/
 import {convertMoneyToAUD} from "../utils/convertToAud";
 import mongoose from "mongoose";
 
+export async function getTransactionsAll(req: Request, res: Response) {
+    const { page = 1, limit = 100 } = req.query; // Default page is 1 and limit is 100 per page
+
+    // Ensure the user is authenticated
+    if (!req.authUser || !req.authUser.id) {
+        return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const pageNumber = parseInt(page as string);
+    const limitNumber = parseInt(limit as string);
+
+    try {
+        // Fetch the total count of transactions for the user
+        const totalTransactions = await Transaction.countDocuments({ userId: req.authUser.id });
+
+        // Calculate the total pages
+        const totalPages = Math.ceil(totalTransactions / limitNumber);
+
+        // Fetch the transactions with pagination (skip and limit)
+        const transactions = await Transaction.find({ userId: req.authUser.id })
+            .skip((pageNumber - 1) * limitNumber) // Skip the previous pages
+            .limit(limitNumber) // Limit the number of results per page
+            .sort({ date: -1 }) // Sort by date descending
+            .exec();
+
+        // If no transactions found, return 404
+        if (transactions.length === 0) {
+            return res.status(404).json({ message: "No transactions found" });
+        }
+
+        res.status(200).json({
+            message: "Transactions retrieved successfully",
+            totalTransactions,
+            totalPages,
+            currentPage: pageNumber,
+            transactions
+        });
+    } catch (error) {
+        console.error('Error retrieving transactions:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+}
+
 export async function getTransaction(req: Request, res: Response) {
     if (!req.body || Object.keys(req.body).length === 0) {
         return res.status(400).send("Request body is empty");

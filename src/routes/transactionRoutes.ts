@@ -2,7 +2,7 @@ import express from "express";
 import {
     addTransaction,
     addTransactions,
-    deleteTransaction,
+    deleteTransaction, getTransactionsAll,
     getTransaction,
     getTransactions,
     updateTransaction
@@ -10,6 +10,7 @@ import {
 
 const router = express.Router();
 
+router.get(["/transactions/all"], getTransactionsAll);
 router.get(["/transactions"], getTransactions);
 router.get(["/transaction/:id"], getTransaction);
 router.post(["/transactions", "/statements"], addTransactions);
