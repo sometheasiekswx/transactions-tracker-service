@@ -7,7 +7,7 @@ import {connectDB} from "./config/db";
 declare global {
     namespace Express {
         interface Request {
-            authUser: { id: String, iat: number, exp: number }; // You can adjust the type according to your needs
+            authUser: { id: String, iat: number | undefined, exp: number | undefined }; // You can adjust the type according to your needs
         }
     }
 }

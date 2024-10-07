@@ -2,6 +2,7 @@ import passport from 'passport';
 import {ExtractJwt, Strategy as JwtStrategy} from 'passport-jwt';
 import {NextFunction, Request, Response} from 'express';
 import dotenv from 'dotenv';
+import jwt from "jsonwebtoken";
 
 // Load environment variables
 dotenv.config();
@@ -30,3 +31,26 @@ export const verifyJwt = (req: Request, res: Response, next: NextFunction) => {
         next();
     })(req, res, next);
 };
+
+// Middleware to verify JWT token from cookies
+export function verifyCookie(req: Request, res: Response, next: NextFunction) {
+    const token = req.cookies.jwt;
+
+    if (!token) {
+        return res.status(401).json({message: 'Unauthorized: No cookies provided'});
+    }
+
+    // Verify the token
+    jwt.verify(token, process.env.JWT_SECRET as string, (err: jwt.VerifyErrors | null, user: any) => {
+        if (err || !user) {
+            return res.status(403).json({message: 'Token is invalid or expired'});
+        }
+
+        req.authUser = user;
+        next();
+    });
+}
+
+
+
+

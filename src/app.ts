@@ -1,13 +1,14 @@
 import express, {Request, Response} from 'express';
 import bodyParser from 'body-parser';
 import transactionRoutes from "./routes/transactionRoutes";
-import {verifyJwt} from "./middleware/jwt";
+import {verifyCookie} from "./middleware/jwt";
+import cookieParser from "cookie-parser";
 
 const app = express();
-
 app.use(express.json());
+app.use(cookieParser());
 app.use(bodyParser.text());
-app.use('/api', verifyJwt);
+app.use('/api', verifyCookie);
 app.use('/api', transactionRoutes);
 
 app.use((req: Request, res: Response) => {
