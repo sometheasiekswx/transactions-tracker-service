@@ -5,7 +5,7 @@ import {convertMoneyToAUD} from "../utils/convertToAud";
 import mongoose from "mongoose";
 
 export async function getTransactionsAll(req: Request, res: Response) {
-    const {page = 1, limit = 100} = req.query; // Default page is 1 and limit is 100 per page
+    const {page = 1, limit = 100, query = ''} = req.query; // Default page is 1 and limit is 100 per page
 
     // Ensure the user is authenticated
 
@@ -17,23 +17,28 @@ export async function getTransactionsAll(req: Request, res: Response) {
     const limitNumber = parseInt(limit as string);
 
     try {
+        // Build the query object
+        const queryObject: any = {userId: req.authUser.id};
+
+        // If the query is not empty, add conditions to the query object
+        if (query) {
+            const regex = new RegExp(query as string, 'i'); // Case-insensitive regex
+            queryObject.$or = [{description: {$regex: regex}}, {status: {$regex: regex}},];
+        }
+
         // Fetch the total count of transactions for the user
-        const totalTransactions = await Transaction.countDocuments({userId: req.authUser.id});
+        // const totalTransactions = await Transaction.countDocuments({userId: req.authUser.id});
+        const totalTransactions = await Transaction.countDocuments(queryObject);
 
         // Calculate the total pages
         const totalPages = Math.ceil(totalTransactions / limitNumber);
 
         // Fetch the transactions with pagination (skip and limit)
-        const transactions = await Transaction.find({userId: req.authUser.id})
+        const transactions = await Transaction.find(queryObject)
             .skip((pageNumber - 1) * limitNumber) // Skip the previous pages
             .limit(limitNumber) // Limit the number of results per page
             .sort({date: -1}) // Sort by date descending
             .exec();
-
-        // If no transactions found, return 404
-        if (transactions.length === 0) {
-            return res.status(404).json({message: "No transactions found"});
-        }
 
         res.status(200).json({
             message: "Transactions retrieved successfully",
@@ -269,7 +274,9 @@ export async function addTransactions(req: Request, res: Response): Promise<Resp
 
             // Store the POS transaction
             if (amountStr && description) {
-                transactions.push({userId: req.authUser.id, date: date!, description: description, amount: amount});
+                transactions.push({
+                    userId: req.authUser.id, date: date!, description: description, amount: amount, status: "Pending"
+                });
             }
         }
     }
