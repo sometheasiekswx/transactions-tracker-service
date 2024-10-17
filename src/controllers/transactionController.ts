@@ -8,7 +8,6 @@ export async function getTransactionsAll(req: Request, res: Response) {
     const {page = 1, limit = 100, query = ''} = req.query; // Default page is 1 and limit is 100 per page
 
     // Ensure the user is authenticated
-
     if (!req.authUser || !req.authUser.id) {
         return res.status(401).json({message: "Unauthorized"});
     }
@@ -33,8 +32,12 @@ export async function getTransactionsAll(req: Request, res: Response) {
         // Calculate the total pages
         const totalPages = Math.ceil(totalTransactions / limitNumber);
 
+
         // Fetch the transactions with pagination (skip and limit)
         const transactions = await Transaction.find(queryObject)
+            .sort({
+                updatedAt: -1 // Sort by date descending
+            })
             .skip((pageNumber - 1) * limitNumber) // Skip the previous pages
             .limit(limitNumber) // Limit the number of results per page
             .sort({date: -1}) // Sort by date descending
@@ -54,10 +57,6 @@ export async function getTransactionsAll(req: Request, res: Response) {
 }
 
 export async function getTransaction(req: Request, res: Response) {
-    if (!req.body || Object.keys(req.body).length === 0) {
-        return res.status(400).send("Request body is empty");
-    }
-
     const {id} = req.params;
 
     if (!mongoose.isValidObjectId(id)) {
@@ -132,6 +131,55 @@ export async function getTransactions(req: Request, res: Response) {
     }
 }
 
+export async function updateTransactions(req: Request, res: Response) {
+    if (!req.body || Object.keys(req.body).length === 0) {
+        return res.status(400).send("Request body is empty");
+    }
+
+    const results = [];
+
+    for (const newData of req.body) {
+        if (!mongoose.isValidObjectId(newData._id)) {
+            return res.status(400).json({message: "Invalid ID format"});
+        }
+
+        // Validate that at least one field is provided
+        if (Object.keys(newData).length === 0) {
+            return res.status(400).json({message: 'No fields provided for update'});
+        }
+
+        const {_id, ...newDataNoId} = newData
+
+        const invalidFields = Object.keys(newDataNoId).filter(field => !allowedUpdateFields.includes(field));
+
+        if (invalidFields.length > 0) {
+            return res.status(400).json({message: `Invalid fields: ${invalidFields.join(', ')}`});
+        }
+
+        try {
+
+            const transaction = await Transaction.findById(_id);
+
+            if (!transaction) {
+                return res.status(404).json({message: "Transaction not found"});
+            }
+
+            // Check if the transaction belongs to the authenticated user
+            if (transaction.userId !== req.authUser.id) {
+                return res.status(403).json({message: "User does not own the transaction"});
+            }
+
+            const result = await transaction.updateOne(newDataNoId, {new: true, runValidators: true});
+            results.push(result)
+        } catch (error) {
+            console.error('Error updating transaction:', error);
+            res.status(500).json({message: 'Server error'});
+        }
+    }
+
+    res.status(200).json({message: "Transactions updated successfully", results: results});
+}
+
 export async function updateTransaction(req: Request, res: Response) {
     if (!req.body || Object.keys(req.body).length === 0) {
         return res.status(400).send("Request body is empty");
@@ -178,10 +226,6 @@ export async function updateTransaction(req: Request, res: Response) {
 }
 
 export async function deleteTransaction(req: Request, res: Response) {
-    if (!req.body || Object.keys(req.body).length === 0) {
-        return res.status(400).send("Request body is empty");
-    }
-
     const {id} = req.params;
 
     // Validate the ID format
@@ -236,7 +280,7 @@ export async function addTransaction(req: Request, res: Response) {
     }
 }
 
-export async function addTransactions(req: Request, res: Response): Promise<Response> {
+export async function addTransactionsANZ(req: Request, res: Response): Promise<Response> {
     if (!req.body || Object.keys(req.body).length === 0) {
         return res.status(400).send("Request body is empty");
     }
