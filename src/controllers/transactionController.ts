@@ -36,11 +36,10 @@ export async function getTransactionsAll(req: Request, res: Response) {
         // Fetch the transactions with pagination (skip and limit)
         const transactions = await Transaction.find(queryObject)
             .sort({
-                updatedAt: -1 // Sort by date descending
+                createdAt: -1 // Sort by date descending
             })
             .skip((pageNumber - 1) * limitNumber) // Skip the previous pages
             .limit(limitNumber) // Limit the number of results per page
-            .sort({date: -1}) // Sort by date descending
             .exec();
 
         res.status(200).json({
