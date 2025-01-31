@@ -6,6 +6,7 @@ import {
     getTransaction,
     getTransactions,
     getTransactionsAll,
+    getTransactionsAllStatusCount,
     updateTransaction,
     updateTransactions
 } from "../controllers/transactionController";
@@ -13,6 +14,7 @@ import {
 const router = express.Router();
 
 router.get(["/transactions/all"], getTransactionsAll);
+router.get(["/transactions/all/status"], getTransactionsAllStatusCount);
 router.get(["/transactions"], getTransactions);
 router.get(["/transaction/:id"], getTransaction);
 router.post(["/transactions/anz"], addTransactionsANZ);
