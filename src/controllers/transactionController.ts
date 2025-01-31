@@ -306,7 +306,7 @@ export async function addTransaction(req: Request, res: Response) {
         return res.status(400).send("Request body is empty");
     }
 
-    const {date, description, amount} = req.body;
+    const {date, description, amount, status} = req.body;
 
     if (!date || !description || typeof amount !== "number") {
         return res.status(400).send("Invalid transaction data");
@@ -315,7 +315,7 @@ export async function addTransaction(req: Request, res: Response) {
     try {
         const transactionDate = new Date(date);
         const newTransaction = {
-            userId: req.authUser.id, date: transactionDate, description: description, amount: amount
+            userId: req.authUser.id, date: transactionDate, description: description, amount: amount, status: status
         };
         const createdTransaction = await Transaction.create(newTransaction);
 
