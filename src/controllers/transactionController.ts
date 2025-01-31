@@ -4,6 +4,53 @@ import {amountRegex, isTransferLine, isValidDateLine, parseDate} from "../utils/
 import {convertMoneyToAUD} from "../utils/convertToAud";
 import mongoose from "mongoose";
 
+export async function getTransactionsAllStatusCount(req: Request, res: Response) {
+    // Ensure the user is authenticated
+    if (!req.authUser || !req.authUser.id) {
+        return res.status(401).json({message: "Unauthorized"});
+    }
+
+    try {
+        const queryBelongToUser: any = {userId: req.authUser.id};
+        const totalTransactions = await Transaction.countDocuments(queryBelongToUser);
+
+        const queryStatusPaid = {
+            $and: [
+                queryBelongToUser,
+                {status: "Paid"}
+            ]
+        }
+        const totalPaidTransactions = await Transaction.countDocuments(queryStatusPaid);
+
+        const queryStatusPending = {
+            $and: [
+                queryBelongToUser,
+                {status: "Pending"}
+            ]
+        }
+        const totalPendingTransactions = await Transaction.countDocuments(queryStatusPending);
+
+        const queryStatusUnpaid = {
+            $and: [
+                queryBelongToUser,
+                {status: "Unpaid"}
+            ]
+        }
+        const totalUnpaidTransactions = await Transaction.countDocuments(queryStatusUnpaid);
+
+        res.status(200).json({
+            message: "Transaction status counts retrieved successfully",
+            totalTransactions,
+            totalPaidTransactions,
+            totalPendingTransactions,
+            totalUnpaidTransactions,
+        });
+    } catch (error) {
+        console.error('Error retrieving transactions:', error);
+        res.status(500).json({message: 'Server error'});
+    }
+}
+
 export async function getTransactionsAll(req: Request, res: Response) {
     const {page = 1, limit = 100, query = ''} = req.query; // Default page is 1 and limit is 100 per page
 
