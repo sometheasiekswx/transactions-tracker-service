@@ -4,6 +4,55 @@ import {amountRegex, isTransferLine, isValidDateLine, parseDate} from "../utils/
 import {convertMoneyToAUD} from "../utils/convertToAud";
 import mongoose from "mongoose";
 
+export async function getTransactionsAllPeriodLast12Months(req: Request, res: Response) {
+    if (!req.authUser || !req.authUser.id) {
+        return res.status(401).json({message: "Unauthorized"});
+    }
+
+    try {
+        const queryBelongToUser: any = {userId: req.authUser.id};
+        const monthsFrom = new Date();
+        const monthsTo = new Date();
+        monthsFrom.setMonth(monthsFrom.getMonth() - 1);
+
+        const totalSpending = []
+        for (let i = 0; i < 12; i++) {
+            monthsFrom.setMonth(monthsFrom.getMonth() - 1);
+            monthsFrom.setDate(1);
+
+            monthsTo.setDate(1);
+            monthsTo.setDate(monthsTo.getDate() - 2)
+
+            console.log(i, monthsFrom, monthsTo)
+
+            const queryFromMonthToMonth = {
+                $and: [queryBelongToUser, {date: {$gte: monthsFrom, $lte: monthsTo}}]
+            }
+
+            const monthlySpending = await Transaction.aggregate([{$match: queryFromMonthToMonth}, {
+                $group: {
+                    _id: {
+                        year: {$year: "$date"}, month: {$month: "$date"}
+                    }, totalSpent: {$sum: "$amount"}
+                }
+            }, {$sort: {"_id.year": 1, "_id.month": 1}}]);
+            if (monthlySpending.length !== 0) {
+                totalSpending.push(monthlySpending[0]);
+            }
+
+            monthsTo.setDate(monthsTo.getDate() + 2)
+            monthsTo.setMonth(monthsTo.getMonth() - 1);
+        }
+
+        res.status(200).json({
+            message: "Transactions retrieved successfully", totalSpending,
+        });
+    } catch (error) {
+        console.error('Error retrieving transactions:', error);
+        res.status(500).json({message: 'Server error'});
+    }
+}
+
 export async function getTransactionsAllStatusCount(req: Request, res: Response) {
     // Ensure the user is authenticated
     if (!req.authUser || !req.authUser.id) {
@@ -15,26 +64,17 @@ export async function getTransactionsAllStatusCount(req: Request, res: Response)
         const totalTransactions = await Transaction.countDocuments(queryBelongToUser);
 
         const queryStatusPaid = {
-            $and: [
-                queryBelongToUser,
-                {status: "Paid"}
-            ]
+            $and: [queryBelongToUser, {status: "Paid"}]
         }
         const totalPaidTransactions = await Transaction.countDocuments(queryStatusPaid);
 
         const queryStatusPending = {
-            $and: [
-                queryBelongToUser,
-                {status: "Pending"}
-            ]
+            $and: [queryBelongToUser, {status: "Pending"}]
         }
         const totalPendingTransactions = await Transaction.countDocuments(queryStatusPending);
 
         const queryStatusUnpaid = {
-            $and: [
-                queryBelongToUser,
-                {status: "Unpaid"}
-            ]
+            $and: [queryBelongToUser, {status: "Unpaid"}]
         }
         const totalUnpaidTransactions = await Transaction.countDocuments(queryStatusUnpaid);
 
