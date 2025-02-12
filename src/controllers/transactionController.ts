@@ -23,8 +23,6 @@ export async function getTransactionsAllPeriodLast12Months(req: Request, res: Re
             monthsTo.setDate(1);
             monthsTo.setDate(monthsTo.getDate() - 2)
 
-            console.log(i, monthsFrom, monthsTo)
-
             const queryFromMonthToMonth = {
                 $and: [queryBelongToUser, {date: {$gte: monthsFrom, $lte: monthsTo}}]
             }
